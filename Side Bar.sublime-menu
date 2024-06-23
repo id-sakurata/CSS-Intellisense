@@ -1,0 +1,24 @@
+[
+    {
+        "caption": "CSS-Intellisense",
+        "children": [
+            {
+                "caption": "Add Folder to CSS-Intellisense",
+                "command": "add_css_folder",
+                "args": {"dirs": []},
+                "context": [
+                    { "key": "is_folder", "operator": "equal", "operand": true }
+                ]
+            },
+            {
+                "caption": "Add File to CSS-Intellisense",
+                "command": "add_css_file",
+                "args": {"files": []},
+                "context": [
+                    { "key": "is_file", "operator": "equal", "operand": true },
+                    { "key": "file_extension", "operator": "equal", "operand": "css" }
+                ]
+            }
+        ]
+    }
+]

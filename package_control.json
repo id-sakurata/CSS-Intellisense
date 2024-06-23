@@ -1,0 +1,12 @@
+[
+    {
+        "name": "CSS-Intellisense",
+        "details": "https://github.com/id-sakurata/CSS-Intellisense",
+        "releases": [
+            {
+                "sublime_text": "*",
+                "tags": true
+            }
+        ]
+    }
+]

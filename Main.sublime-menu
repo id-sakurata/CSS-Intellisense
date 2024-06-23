@@ -1,0 +1,54 @@
+[
+    {
+        "id": "tools",
+        "children": [
+            {
+                "caption": "CSS-Intellisense",
+                "children": [
+                    {
+                        "caption": "Refresh Cache",
+                        "command": "refresh_css_intellisense"
+                    },
+                    {
+                        "caption": "Clear Cache",
+                        "command": "clear_css_intellisense_cache"
+                    },
+                    {
+                        "caption": "Enable Auto Complete CSS",
+                        "command": "toggle_css_intellisense",
+                        "args": {"enable": true}
+                    },
+                    {
+                        "caption": "Disable Auto Complete CSS",
+                        "command": "toggle_css_intellisense",
+                        "args": {"enable": false}
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "preferences",
+        "children": [
+            {
+                "id": "package-settings",
+                "caption": "Package Settings",
+                "children": [
+                    {
+                        "caption": "CSS-Intellisense",
+                        "children": [
+                            {
+                                "caption": "Settings",
+                                "command": "edit_settings",
+                                "args": {
+                                    "base_file": "${packages}/CSS-Intellisense/CSS-Intellisense.sublime-settings",
+                                    "default": "{\n\t$0\n}\n"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]
