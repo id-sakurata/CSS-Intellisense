@@ -12,7 +12,17 @@ class CssIntellisense(sublime_plugin.EventListener):
     auto_search = False
     enabled = True
     auto_refresh_interval = False
-    scopes = ["text.html"]
+    scopes = ["string.quoted.double.html"]
+
+    @classmethod
+    def load_settings(cls):
+        settings = sublime.load_settings("CSS-Intellisense.sublime-settings")
+        cls.css_folders = settings.get("css_folders", [])
+        cls.css_files = settings.get("css_files", [])
+        cls.auto_search = settings.get("auto_search", False)
+        cls.enabled = settings.get("enabled", True)
+        cls.auto_refresh_interval = settings.get("auto_refresh_interval", False)
+        cls.scopes = settings.get("scopes", ["text.html"])
 
     @classmethod
     def refresh_cache(cls):
@@ -72,48 +82,48 @@ class CssIntellisense(sublime_plugin.EventListener):
             print("Error reading {}: {}".format(file_path, e))
 
     def on_query_completions(self, view, prefix, locations):
-        if not self.enabled:
+        CssIntellisense.load_settings()
+        if not CssIntellisense.enabled:
             return
-        for scope in self.scopes:
+        for scope in CssIntellisense.scopes:
             if view.match_selector(locations[0], scope):
-                completions = [(cls_name + "\t" + file_name, cls_name) for (cls_name, file_name) in self.css_classes if prefix in cls_name]
+                completions = [(cls_name + "\t" + file_name, cls_name) for (cls_name, file_name) in CssIntellisense.css_classes if prefix in cls_name]
                 return completions
 
 class AddCssFolderCommand(sublime_plugin.WindowCommand):
     def run(self, dirs):
+        CssIntellisense.load_settings()
         CssIntellisense.css_folders.extend(dirs)
         CssIntellisense.refresh_cache()
 
 class AddCssFileCommand(sublime_plugin.WindowCommand):
     def run(self, files):
+        CssIntellisense.load_settings()
         CssIntellisense.css_files.extend(files)
         CssIntellisense.refresh_cache()
 
 class RefreshCssIntellisenseCommand(sublime_plugin.WindowCommand):
     def run(self):
+        CssIntellisense.load_settings()
         CssIntellisense.refresh_cache()
         sublime.message_dialog("CSS Intellisense cache refreshed!")
 
 class ClearCssIntellisenseCacheCommand(sublime_plugin.WindowCommand):
     def run(self):
+        CssIntellisense.load_settings()
         CssIntellisense.css_classes.clear()
         sublime.message_dialog("CSS Intellisense cache cleared!")
 
 class ToggleCssIntellisenseCommand(sublime_plugin.WindowCommand):
     def run(self, enable):
+        CssIntellisense.load_settings()
         CssIntellisense.enabled = enable
         if enable:
             CssIntellisense.refresh_cache()
         sublime.message_dialog("CSS Intellisense is now {}.".format("enabled" if enable else "disabled"))
 
 def plugin_loaded():
-    settings = sublime.load_settings("CSS-Intellisense.sublime-settings")
-    CssIntellisense.css_folders = settings.get("css_folders", [])
-    CssIntellisense.css_files = settings.get("css_files", [])
-    CssIntellisense.auto_search = settings.get("auto_search", False)
-    CssIntellisense.enabled = settings.get("enabled", True)
-    CssIntellisense.auto_refresh_interval = settings.get("auto_refresh_interval", False)
-    CssIntellisense.scopes = settings.get("scopes", ["text.html"])
+    CssIntellisense.load_settings()
     CssIntellisense.refresh_cache()
     
     if CssIntellisense.auto_refresh_interval and isinstance(CssIntellisense.auto_refresh_interval, int):
@@ -124,13 +134,3 @@ def auto_refresh_cache(interval):
         if CssIntellisense.enabled:
             CssIntellisense.refresh_cache()
         time.sleep(interval)  # interval in seconds
-
-def plugin_unloaded():
-    settings = sublime.load_settings("CSS-Intellisense.sublime-settings")
-    # settings.set("css_folders", CssIntellisense.css_folders)
-    # settings.set("css_files", CssIntellisense.css_files)
-    # settings.set("auto_search", CssIntellisense.auto_search)
-    settings.set("enabled", CssIntellisense.enabled)
-    # settings.set("auto_refresh_interval", CssIntellisense.auto_refresh_interval)
-    # settings.set("scopes", CssIntellisense.scopes)
-    sublime.save_settings("CSS-Intellisense.sublime-settings")
