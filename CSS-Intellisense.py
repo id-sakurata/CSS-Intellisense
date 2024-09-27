@@ -73,23 +73,52 @@ class CssIntellisense(sublime_plugin.EventListener):
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
+                # Ambil daftar kelas dari file CSS
                 classes = re.findall(r'\.([a-zA-Z0-9_-]+)', content)
                 file_name = os.path.basename(file_path)
+                
                 for cls in classes:
-                    cls_key = (cls, file_name)
-                    CssIntellisense.css_classes[cls_key] = cls_key
+                    # Cek apakah kelas sudah ada di cache
+                    if cls not in CssIntellisense.css_classes:
+                        # Simpan kelas dan nama file di cache jika belum ada
+                        CssIntellisense.css_classes[cls] = file_name
         except Exception as e:
             print("Error reading {}: {}".format(file_path, e))
 
     def on_query_completions(self, view, prefix, locations):
-        CssIntellisense.load_settings()
+        CssIntellisense.load_settings()  # Pastikan settings terbaru di-load
         if not CssIntellisense.enabled:
-            return
-        for scope in CssIntellisense.scopes:
-            if view.match_selector(locations[0], scope):
-                completions = [(cls_name + "\t" + file_name, cls_name) for (cls_name, file_name) in CssIntellisense.css_classes if prefix in cls_name]
-                return completions
+            return None  # Plugin dinonaktifkan, tidak melakukan auto-complete
+        
+        # Cek apakah kursor berada di dalam atribut class=""
+        for location in locations:
+            # Ambil teks di sekitar kursor
+            current_line = view.substr(view.line(location))
+            
+            # Cek apakah di sekitar kursor ada atribut class=""
+            if 'class="' in current_line:
+                # Cek apakah kursor berada di dalam nilai atribut class=""
+                class_attr_start = current_line.find('class="') + len('class="')
+                class_attr_end = current_line.find('"', class_attr_start)
+                
+                # Pastikan kursor berada di antara class=""
+                if class_attr_start <= view.rowcol(location)[1] <= class_attr_end:
+                    for scope in CssIntellisense.scopes:
+                        # Cek apakah posisi kursor berada di dalam scope yang diizinkan
+                        if view.match_selector(locations[0], scope):
+                            # Buat daftar kelas untuk auto-complete dengan format yang benar
+                            # Tambahkan pengurutan berdasarkan abjad
+                            completions = sorted(
+                                [("{}\t{}".format(cls_name, file_name), cls_name) 
+                                 for cls_name, file_name in CssIntellisense.css_classes.items() 
+                                 if prefix in cls_name],
+                                key=lambda item: item[0]  # Urutkan berdasarkan nama kelas (item[0])
+                            )
+                            return completions
 
+        return None  # Jika tidak ada yang cocok, return None
+
+        
 class AddCssFolderCommand(sublime_plugin.WindowCommand):
     def run(self, dirs):
         CssIntellisense.load_settings()
