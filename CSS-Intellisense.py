@@ -3,70 +3,25 @@ import sublime_plugin
 import os
 import re
 import threading
-import time
 
-class CssIntellisense(sublime_plugin.EventListener):
+class CssIntellisense:
     css_classes = {}
     css_folders = []
     css_files = []
-    auto_search = False
     enabled = True
-    auto_refresh_interval = False
-    scopes = ["string.quoted.double.html"]
-
-    @classmethod
-    def load_settings(cls):
+    auto_search = True
+    scopes = ["text.html", "text.xml"]  # Sesuaikan dengan kebutuhan
+    auto_refresh_interval = None  # Nilai default (None berarti tidak ada auto refresh)
+    
+    @staticmethod
+    def load_settings():
         settings = sublime.load_settings("CSS-Intellisense.sublime-settings")
-        cls.css_folders = settings.get("css_folders", [])
-        cls.css_files = settings.get("css_files", [])
-        cls.auto_search = settings.get("auto_search", False)
-        cls.enabled = settings.get("enabled", True)
-        cls.auto_refresh_interval = settings.get("auto_refresh_interval", False)
-        cls.scopes = settings.get("scopes", ["text.html"])
-
-    @classmethod
-    def refresh_cache(cls):
-        if not cls.enabled:
-            return
-        cls.css_classes.clear()
-        total_files = 0
-        if cls.auto_search:
-            cls.auto_search_css_files()
-        total_files += len(cls.css_files)
-        for folder in cls.css_folders:
-            for root, _, files in os.walk(folder):
-                total_files += len([file for file in files if file.endswith(".css")])
-        current_file_count = 0
-        window = sublime.active_window()
-        if window:
-            window.status_message("CSS Intellisense: Scanning files...")
-
-        for folder in cls.css_folders:
-            for root, _, files in os.walk(folder):
-                for file in files:
-                    if file.endswith(".css"):
-                        cls.extract_classes(os.path.join(root, file))
-                        current_file_count += 1
-                        progress = int((current_file_count / total_files) * 100)
-                        window.status_message("CSS Intellisense: Scanning files... {}%".format(progress))
-        for file in cls.css_files:
-            cls.extract_classes(file)
-            current_file_count += 1
-            progress = int((current_file_count / total_files) * 100)
-            window.status_message("CSS Intellisense: Scanning files... {}%".format(progress))
-        
-        window.status_message("CSS Intellisense: Scanning complete.")
-
-    @classmethod
-    def auto_search_css_files(cls):
-        window = sublime.active_window()
-        if window:
-            folders = window.folders()
-            for folder in folders:
-                for root, _, files in os.walk(folder):
-                    for file in files:
-                        if file.endswith(".css"):
-                            cls.css_files.append(os.path.join(root, file))
+        CssIntellisense.enabled = settings.get("enabled", True)
+        CssIntellisense.scopes = settings.get("scopes", ["text.html", "text.xml"])
+        CssIntellisense.auto_search = settings.get("auto_search", True)
+        CssIntellisense.auto_refresh_interval = settings.get("auto_refresh_interval", None)
+        CssIntellisense.css_folders = settings.get("css_folders", [])
+        CssIntellisense.css_files = settings.get("css_files", [])
 
     @staticmethod
     def extract_classes(file_path):
@@ -78,13 +33,104 @@ class CssIntellisense(sublime_plugin.EventListener):
                 file_name = os.path.basename(file_path)
                 
                 for cls in classes:
-                    # Cek apakah kelas sudah ada di cache
+                    # Tambahkan kelas hanya jika belum ada di cache
                     if cls not in CssIntellisense.css_classes:
-                        # Simpan kelas dan nama file di cache jika belum ada
                         CssIntellisense.css_classes[cls] = file_name
         except Exception as e:
-            print("Error reading {}: {}".format(file_path, e))
+            print("Error reading {}: {}".format(file_path, e))  # Print untuk Python 3.3
 
+    @staticmethod
+    def search_css_in_project():
+        """Otomatis mencari file CSS di root project."""
+        if CssIntellisense.auto_search:
+            # Dapatkan root folder dari project
+            folders = sublime.active_window().folders()
+            for folder in folders:
+                CssIntellisense.add_css_folder(folder)
+
+    @staticmethod
+    def add_css_folder(folder_path):
+        try:
+            # Tambahkan folder ke dalam daftar folder yang akan dipantau
+            if folder_path not in CssIntellisense.css_folders:
+                CssIntellisense.css_folders.append(folder_path)
+
+            # Jangan reset atau kosongkan cache sebelumnya
+            # Pastikan untuk hanya menambahkan hasil dari folder baru
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    if file.endswith(".css"):
+                        file_path = os.path.join(root, file)
+                        CssIntellisense.extract_classes(file_path)
+            
+            # Setelah pemindaian, kirim pesan ke status bar
+            sublime.status_message("CSS Intellisense: Added CSS folder {}".format(folder_path))
+        
+        except Exception as e:
+            print("Error adding CSS folder {}: {}".format(folder_path, e))  # Print untuk Python 3.3
+
+    @staticmethod
+    def add_css_file(file_path):
+        try:
+            # Tambahkan file ke dalam daftar file yang akan dipantau
+            if file_path not in CssIntellisense.css_files:
+                CssIntellisense.css_files.append(file_path)
+
+            # Pindai file CSS dan tambahkan ke cache, tanpa mereset cache sebelumnya
+            if file_path.endswith(".css"):
+                CssIntellisense.extract_classes(file_path)
+            
+            # Setelah pemindaian, kirim pesan ke status bar
+            sublime.status_message("CSS Intellisense: Added CSS file {}".format(file_path))
+        
+        except Exception as e:
+            print("Error adding CSS file {}: {}".format(file_path, e))  # Print untuk Python 3.3
+
+    @staticmethod
+    def refresh_cache():
+        # Lakukan refresh terhadap cache CSS dengan cara memuat ulang semua file CSS
+        CssIntellisense.css_classes.clear()
+
+        # Proses pemindaian kembali untuk file dan folder yang diatur
+        for folder in CssIntellisense.css_folders:
+            CssIntellisense.add_css_folder(folder)
+
+        for file in CssIntellisense.css_files:
+            CssIntellisense.add_css_file(file)
+        
+        sublime.status_message("CSS Intellisense: Cache refreshed")
+
+    @staticmethod
+    def clear_cache():
+        # Kosongkan cache sepenuhnya
+        CssIntellisense.css_classes.clear()
+        CssIntellisense.css_folders = []
+        CssIntellisense.css_files = []
+        sublime.status_message("CSS Intellisense: Cache cleared")
+
+class AddCssFolderCommand(sublime_plugin.WindowCommand):
+    def run(self, dirs):
+        # Mengambil folder dari klik kanan pada sidebar
+        if dirs:
+            folder_path = dirs[0]
+            threading.Thread(target=CssIntellisense.add_css_folder, args=(folder_path,)).start()
+
+class AddCssFileCommand(sublime_plugin.WindowCommand):
+    def run(self, files):
+        # Mengambil file dari klik kanan pada sidebar
+        if files:
+            file_path = files[0]
+            threading.Thread(target=CssIntellisense.add_css_file, args=(file_path,)).start()
+
+class RefreshCssCacheCommand(sublime_plugin.WindowCommand):
+    def run(self):
+        threading.Thread(target=CssIntellisense.refresh_cache).start()
+
+class ClearCssCacheCommand(sublime_plugin.WindowCommand):
+    def run(self):
+        CssIntellisense.clear_cache()
+
+class CssIntellisenseListener(sublime_plugin.EventListener):
     def on_query_completions(self, view, prefix, locations):
         CssIntellisense.load_settings()  # Pastikan settings terbaru di-load
         if not CssIntellisense.enabled:
@@ -117,49 +163,3 @@ class CssIntellisense(sublime_plugin.EventListener):
                             return completions
 
         return None  # Jika tidak ada yang cocok, return None
-
-        
-class AddCssFolderCommand(sublime_plugin.WindowCommand):
-    def run(self, dirs):
-        CssIntellisense.load_settings()
-        CssIntellisense.css_folders.extend(dirs)
-        CssIntellisense.refresh_cache()
-
-class AddCssFileCommand(sublime_plugin.WindowCommand):
-    def run(self, files):
-        CssIntellisense.load_settings()
-        CssIntellisense.css_files.extend(files)
-        CssIntellisense.refresh_cache()
-
-class RefreshCssIntellisenseCommand(sublime_plugin.WindowCommand):
-    def run(self):
-        CssIntellisense.load_settings()
-        CssIntellisense.refresh_cache()
-        sublime.message_dialog("CSS Intellisense cache refreshed!")
-
-class ClearCssIntellisenseCacheCommand(sublime_plugin.WindowCommand):
-    def run(self):
-        CssIntellisense.load_settings()
-        CssIntellisense.css_classes.clear()
-        sublime.message_dialog("CSS Intellisense cache cleared!")
-
-class ToggleCssIntellisenseCommand(sublime_plugin.WindowCommand):
-    def run(self, enable):
-        CssIntellisense.load_settings()
-        CssIntellisense.enabled = enable
-        if enable:
-            CssIntellisense.refresh_cache()
-        sublime.message_dialog("CSS Intellisense is now {}.".format("enabled" if enable else "disabled"))
-
-def plugin_loaded():
-    CssIntellisense.load_settings()
-    CssIntellisense.refresh_cache()
-    
-    if CssIntellisense.auto_refresh_interval and isinstance(CssIntellisense.auto_refresh_interval, int):
-        threading.Thread(target=auto_refresh_cache, args=(CssIntellisense.auto_refresh_interval,)).start()
-
-def auto_refresh_cache(interval):
-    while True:
-        if CssIntellisense.enabled:
-            CssIntellisense.refresh_cache()
-        time.sleep(interval)  # interval in seconds
