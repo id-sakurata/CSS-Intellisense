@@ -4,5 +4,5 @@
     "auto_search": false,
     "enabled": true,
     "auto_refresh_interval": false,  // Set to an integer value for seconds
-    "scopes": ["string.quoted.double.html"]
+    "scopes": ["string.quoted.double.html", "text.html.php"]
 }

@@ -1,10 +1,10 @@
 [
     {
         "caption": "CSS-Intellisense: Reload",
-        "command": "refresh_css_intellisense",
+        "command": "refresh_css_cache",
     },
     {
         "caption": "CSS-Intellisense: Clear Cache",
-        "command": "clear_css_intellisense_cache",
+        "command": "clear_css_cache",
     },
 ]
