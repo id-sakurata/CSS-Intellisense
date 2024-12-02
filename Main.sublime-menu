@@ -3,7 +3,7 @@
         "id": "tools",
         "children": [
             {
-                "caption": "CSS-Intellisense",
+                "caption": "CSS Intellisense",
                 "children": [
                     {
                         "caption": "Refresh Cache",
@@ -25,7 +25,7 @@
                 "caption": "Package Settings",
                 "children": [
                     {
-                        "caption": "CSS-Intellisense",
+                        "caption": "CSS Intellisense",
                         "children": [
                             {
                                 "caption": "Settings",
