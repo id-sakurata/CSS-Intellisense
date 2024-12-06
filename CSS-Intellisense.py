@@ -3,30 +3,39 @@ import sublime_plugin
 import os
 import re
 import threading
+import time
 
 class CssIntellisense:
-	css_classes = {}  # Dictionary untuk menyimpan kelas dan nama file
-	sorted_completions = []  # Daftar kelas yang sudah diurutkan
+	css_classes = {}
+	sorted_completions = []
 	css_folders = []
 	css_files = []
 	enabled = True
 	auto_search = False
-	scopes = ["text.html", "text.html.php"]
-	auto_refresh_interval = None
+	scopes = ["string.quoted.double.html", "text.html", "text.html.php", "source.jsx", "source.tsx", "text.html.blade"]
+	auto_refresh_interval = False  # Default false
 
 	@staticmethod
 	def load_settings():
 		settings = sublime.load_settings("CSS-Intellisense.sublime-settings")
 		CssIntellisense.enabled = settings.get("enabled", True)
-		CssIntellisense.scopes = settings.get("scopes", ["text.html", "text.html.php"])
+		CssIntellisense.scopes = settings.get(
+			"scopes", [
+				"string.quoted.double.html",
+				"text.html",
+				"text.html.php",
+				"source.jsx",
+				"source.tsx",
+				"text.html.blade"
+			]
+		)
 		CssIntellisense.auto_search = settings.get("auto_search", True)
-		CssIntellisense.auto_refresh_interval = settings.get("auto_refresh_interval", None)
+		CssIntellisense.auto_refresh_interval = settings.get("auto_refresh_interval", False)
 		CssIntellisense.css_folders = settings.get("css_folders", [])
 		CssIntellisense.css_files = settings.get("css_files", [])
 
 	@staticmethod
 	def update_sorted_completions():
-		"""Update daftar autocomplete yang sudah diurutkan berdasarkan cache."""
 		CssIntellisense.sorted_completions = sorted(
 			[("{}\t{}".format(cls_name, file_name), cls_name)
 			 for cls_name, file_name in CssIntellisense.css_classes.items()],
@@ -99,6 +108,16 @@ class CssIntellisense:
 		CssIntellisense.css_files = []
 		sublime.status_message("CSS Intellisense: Cache cleared")
 
+	@staticmethod
+	def start_auto_refresh():
+		"""Memulai proses auto-refresh jika interval diatur."""
+		if isinstance(CssIntellisense.auto_refresh_interval, (int, float)) and CssIntellisense.auto_refresh_interval > 0:
+			def auto_refresh():
+				while True:
+					time.sleep(CssIntellisense.auto_refresh_interval)
+					CssIntellisense.refresh_cache()
+			threading.Thread(target=auto_refresh, daemon=True).start()
+
 class AddCssFolderCommand(sublime_plugin.WindowCommand):
 	def run(self, dirs):
 		if dirs:
@@ -124,21 +143,20 @@ class CssIntellisenseListener(sublime_plugin.EventListener):
 		CssIntellisense.load_settings()
 		if not CssIntellisense.enabled:
 			return None
-		
+
 		for location in locations:
 			if any(view.match_selector(location, scope) for scope in CssIntellisense.scopes):
 				line_region = view.line(location)
 				line_text = view.substr(line_region)
 
-				matches = re.finditer(r'class="([^"]*)"', line_text)
+				matches = re.finditer(r'(class|className)="([^"]*)"', line_text)
 				
 				for match in matches:
-					start, end = match.span(1)
+					start, end = match.span(2)
 					class_attr_start = line_region.begin() + start
 					class_attr_end = line_region.begin() + end
 					
 					if class_attr_start <= location <= class_attr_end:
-						# Gunakan sorted_completions langsung tanpa sorting ulang
 						completions = [
 							completion for completion in CssIntellisense.sorted_completions
 							if prefix in completion[1]
@@ -146,3 +164,9 @@ class CssIntellisenseListener(sublime_plugin.EventListener):
 						return completions
 
 		return None
+
+
+def plugin_loaded():
+	CssIntellisense.load_settings()
+	CssIntellisense.search_css_in_project()
+	CssIntellisense.start_auto_refresh()
